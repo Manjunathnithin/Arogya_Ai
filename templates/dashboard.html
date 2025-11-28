@@ -125,7 +125,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         const userType = "{{ user.user_type }}";
 
-        // --- PATIENT LOGIC: SEND CONNECTION REQUEST ---
+        // --- PATIENT LOGIC ---
         if (userType === 'patient') {
             const connForm = document.getElementById('connection-form');
             if (connForm) {
@@ -139,7 +139,7 @@
                         const response = await fetch('/connections/', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ doctor_email: docEmail, patient_email: "{{ user.email }}" }) // patient_email is redundant but safe
+                            body: JSON.stringify({ doctor_email: docEmail, patient_email: "{{ user.email }}" })
                         });
 
                         if (response.ok) {
@@ -156,12 +156,13 @@
             }
         }
 
-        // --- DOCTOR LOGIC: VIEW & ACCEPT REQUESTS ---
+        // --- DOCTOR LOGIC ---
         if (userType === 'doctor') {
             loadPendingRequests();
             loadConnectedPatients();
         }
 
+        // 1. Load Requests
         async function loadPendingRequests() {
             const container = document.getElementById('requests-container');
             try {
@@ -169,27 +170,26 @@
                 if (response.ok) {
                     const requests = await response.json();
                     if (requests.length === 0) {
-                        container.innerHTML = '<p style="color:#777;">No pending requests.</p>';
+                        container.innerHTML = '<p style="color:#777; font-style:italic;">No pending requests.</p>';
                         return;
                     }
                     
                     container.innerHTML = requests.map(req => `
-                        <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; background-color: #f9fafb;">
                             <div>
-                                <strong>Patient:</strong> ${req.patient_email}<br>
+                                <strong>${req.patient_email}</strong><br>
                                 <span style="font-size: 0.8em; color: #555;">Requested: ${new Date(req.request_date).toLocaleDateString()}</span>
                             </div>
-                            <button onclick="acceptRequest('${req.id}')" style="background-color: #10b981; padding: 5px 10px;">Accept</button>
+                            <button onclick="acceptRequest('${req.id}')" style="background-color: #10b981; color: white; padding: 5px 10px; border:none; border-radius:4px; cursor:pointer;">Accept</button>
                         </div>
                     `).join('');
-                } else {
-                    container.innerHTML = '<p style="color:red">Failed to load requests.</p>';
                 }
             } catch (e) {
-                container.innerHTML = '<p style="color:red">Network error.</p>';
+                console.error(e);
             }
         }
 
+        // 2. Load Patients (UPDATED with "View" button)
         async function loadConnectedPatients() {
             const container = document.getElementById('patients-list-container');
             try {
@@ -200,28 +200,77 @@
                         container.innerHTML = '<p style="color:#777;">No connected patients yet.</p>';
                         return;
                     }
-                    container.innerHTML = `<ul>${patients.map(email => `<li>${email}</li>`).join('')}</ul>`;
+                    // Render list with "View Records" button
+                    container.innerHTML = `<ul style="list-style:none; padding:0;">${patients.map(email => `
+                        <li style="background:white; border:1px solid #eee; padding:10px; margin-bottom:8px; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">
+                            <span>${email}</span>
+                            <button onclick="viewPatientReports('${email}')" style="background-color:#4f46e5; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:0.9em;">
+                                View Records
+                            </button>
+                        </li>
+                    `).join('')}</ul>
+                    <div id="patient-reports-display" style="margin-top:20px; border-top:2px dashed #ccc; padding-top:10px; display:none;">
+                        </div>`;
                 }
             } catch (e) {
                 console.error(e);
             }
         }
 
-        // Make acceptRequest available globally
+        // 3. Accept Request Action
         window.acceptRequest = async function(requestId) {
             if (!confirm("Accept this patient connection?")) return;
-
             try {
                 const response = await fetch(`/connections/${requestId}/accept`, { method: 'PUT' });
                 if (response.ok) {
                     alert("Connected!");
-                    loadPendingRequests(); // Refresh list
-                    loadConnectedPatients(); // Refresh list
+                    loadPendingRequests();
+                    loadConnectedPatients();
                 } else {
-                    alert("Failed to accept request.");
+                    alert("Failed to accept.");
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        // 4. View Patient Reports Action (NEW)
+        window.viewPatientReports = async function(patientEmail) {
+            const displayArea = document.getElementById('patient-reports-display');
+            displayArea.style.display = 'block';
+            displayArea.innerHTML = `<h4 style="color:#4f46e5;">Medical Records for: ${patientEmail}</h4><p>Loading...</p>`;
+            
+            try {
+                // Fetch reports using the route we already have in doctor_routes.py
+                const response = await fetch(`/doctor/patients/${patientEmail}/reports`);
+                
+                if (response.ok) {
+                    const reports = await response.json();
+                    
+                    if (reports.length === 0) {
+                        displayArea.innerHTML += '<p>No records found for this patient.</p>';
+                        return;
+                    }
+
+                    // Render the reports (Re-using the style from app.js)
+                    const reportsHtml = reports.map(report => `
+                        <div style="border: 1px solid #ccc; margin-bottom: 10px; padding: 10px; border-radius: 6px; background-color: #fff;">
+                            <strong>${report.title}</strong> 
+                            <span style="float: right; font-size: 0.8em; color: #777;">${new Date(report.upload_date).toLocaleDateString()}</span>
+                            <p style="margin: 5px 0 0; font-size: 0.9em;">Type: ${report.report_type}</p>
+                            ${report.description ? `<p style="font-size: 0.9em; color: #555; margin-top: 5px; background:#f9f9f9; padding:5px;">${report.description}</p>` : ''}
+                        </div>
+                    `).join('');
+
+                    displayArea.innerHTML = `<h4 style="color:#4f46e5;">Medical Records for: ${patientEmail}</h4>` + reportsHtml;
+                    
+                    // Scroll to view
+                    displayArea.scrollIntoView({ behavior: 'smooth' });
+
+                } else {
+                    displayArea.innerHTML = '<p style="color:red;">Error fetching reports. You might not be authorized.</p>';
                 }
             } catch (e) {
-                alert("Error connecting.");
+                console.error(e);
+                displayArea.innerHTML = '<p style="color:red;">Network error.</p>';
             }
         }
     });
