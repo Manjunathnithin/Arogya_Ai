@@ -40,20 +40,57 @@ class ChatMessage(ChatMessageBase):
     owner_email: str
     timestamp: datetime = datetime.now(timezone.utc)
 
-# --- REPORT MODELS (UPDATED) ---
 
-# 1. Model for CREATING a report (What the frontend sends)
+# --- REPORT MODELS ---
+
 class ReportCreate(BaseModel):
     title: str
     description: str | None = None
-    report_type: str # e.g., 'Blood Test', 'MRI Scan', 'Prescription'
+    report_type: str 
 
-# 2. Model for DATABASE/READING (Includes system fields like email/date)
 class ReportBase(ReportCreate):
     owner_email: EmailStr 
     upload_date: datetime = datetime.now(timezone.utc)
 
 class Report(ReportBase):
+    id: str | None = None
+    
+    class Config:
+        from_attributes = True
+        json_encoders = {ObjectId: str}
+
+# --- APPOINTMENT MODELS (UPDATED) ---
+
+# 1. Input Model (User provides these)
+class AppointmentCreate(BaseModel):
+    title: str
+    doctor_email: EmailStr
+    appointment_time: datetime
+
+# 2. Database Model (Includes system fields)
+class AppointmentBase(AppointmentCreate):
+    patient_email: EmailStr
+    status: str = 'scheduled' 
+
+class Appointment(AppointmentBase):
+    id: str | None = None
+    
+    class Config:
+        from_attributes = True
+        json_encoders = {ObjectId: str}
+
+# --- CONNECTION MODELS ---
+
+class ConnectionRequestBase(BaseModel):
+    patient_email: EmailStr
+    doctor_email: EmailStr
+    status: str = 'pending' 
+    request_date: datetime = datetime.now(timezone.utc)
+    
+class ConnectionRequestCreate(ConnectionRequestBase):
+    doctor_email: EmailStr
+
+class ConnectionRequest(ConnectionRequestBase):
     id: str | None = None
     
     class Config:
@@ -75,38 +112,3 @@ class PyObjectId(ObjectId):
     @classmethod
     def __modify_schema__(cls, field_schema):
         field_schema.update(type="string")
-
-# Appointment Models
-class AppointmentBase(BaseModel):
-    title: str
-    appointment_time: datetime
-    status: str = 'scheduled' 
-    patient_email: EmailStr
-    doctor_email: EmailStr
-
-class AppointmentCreate(AppointmentBase):
-    pass
-
-class Appointment(AppointmentBase):
-    id: str | None = None
-    
-    class Config:
-        from_attributes = True
-        json_encoders = {ObjectId: str}
-
-# Connection Models
-class ConnectionRequestBase(BaseModel):
-    patient_email: EmailStr
-    doctor_email: EmailStr
-    status: str = 'pending' 
-    request_date: datetime = datetime.now(timezone.utc)
-    
-class ConnectionRequestCreate(ConnectionRequestBase):
-    doctor_email: EmailStr
-
-class ConnectionRequest(ConnectionRequestBase):
-    id: str | None = None
-    
-    class Config:
-        from_attributes = True
-        json_encoders = {ObjectId: str}

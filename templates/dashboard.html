@@ -5,6 +5,18 @@
     <title>AarogyaAI Dashboard</title>
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <style>
+        /* Pulse animation for recording state */
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .recording {
+            animation: pulse 1.5s infinite;
+            background-color: #dc2626 !important; /* Darker red */
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -23,17 +35,18 @@
             <p><strong>Role:</strong> {{ user.user_type | capitalize }}</p>
             <hr>
 
-            <h4 style="color: #4f46e5;">Features</h4>
+            <h4 style="color: #4f46e5;">Menu</h4>
             <ul>
-                {% if is_patient %}
                 <li><a href="#chat-section">AI Assistant</a></li>
+                <li><a href="#appointments-section">Appointments</a></li>
+
+                {% if is_patient %}
                 <li><a href="#connect-doctor">Connect with Doctor</a></li>
-                <li><a href="#reports">Medical Records</a></li>
-                <li><a href="#appointments">Appointments</a></li>
+                <li><a href="#submit-report">Upload Reports</a></li>
+                <li><a href="#my-reports">My Records</a></li>
                 {% endif %}
 
                 {% if is_doctor %}
-                <li><a href="#chat-section">AI Assistant</a></li>
                 <li><a href="#pending-requests">Connection Requests</a></li>
                 <li><a href="#my-patients">My Patients</a></li>
                 {% endif %}
@@ -41,81 +54,92 @@
         </aside>
 
         <main class="main-content">
+            
             <h2 id="chat-section">AI Medical Assistant</h2>
             
-            <div id="chat-history-container" style="height: 50vh;">
+            <div id="chat-history-container" style="height: 40vh; border:1px solid #e5e7eb; border-radius:8px; padding:10px; overflow-y:auto; margin-bottom:10px;">
                 <div class="flex flex-col items-center justify-center h-full text-gray-400 text-xs italic space-y-2">
                     <span>Loading chat history...</span>
                 </div>
             </div>
 
-            <form id="chat-form" class="chat-input-area">
-                <input type="text" id="query-input" name="query" placeholder="Ask a medical question or analyze your records..." required>
-                <button type="submit" name="action" value="ask">Ask</button>
+            <form id="chat-form" class="chat-input-area" style="display:flex; gap:8px;">
+                <input type="text" id="query-input" name="query" placeholder="Ask a medical question..." required style="flex-grow:1; padding:10px; border:1px solid #ccc; border-radius:4px;">
+                
+                <button type="button" id="voice-btn" style="background-color: #ef4444; width: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: all 0.2s;" title="Hold to Speak">
+                    🎤
+                </button>
+
+                <button type="submit" name="action" value="ask" style="padding:10px 20px;">Ask</button>
                 
                 {% if is_patient %}
-                <button type="submit" name="action" value="summarize" style="background-color: #3b82f6;">Summarize Records</button>
+                <button type="submit" name="action" value="summarize" style="background-color: #3b82f6; padding:10px 15px;">Summarize</button>
                 {% endif %}
             </form>
+            <p id="voice-status" style="font-size: 0.8em; color: #666; margin-top: 5px; height: 1.2em; font-style: italic;"></p>
 
-            <hr style="margin: 20px 0;">
+            <hr style="margin: 30px 0;">
 
             {% if is_patient %}
-            
             <h3 id="connect-doctor" style="color: #4f46e5;">Connect with a Doctor</h3>
-            <p>Enter a doctor's email to share your records with them.</p>
             <form id="connection-form" style="display: flex; gap: 10px; margin-bottom: 20px;">
-                <input type="email" id="doctor-email-input" name="doctor_email" placeholder="Doctor's Email (e.g., dr.strange@arogya.ai)" required 
-                    style="padding: 10px; border: 1px solid #ccc; border-radius: 4px; flex-grow: 1;">
+                <input type="email" id="doctor-email-input" name="doctor_email" placeholder="Doctor's Email" required style="padding: 10px; border: 1px solid #ccc; border-radius: 4px; flex-grow: 1;">
                 <button type="submit" style="background-color: #8b5cf6;">Send Request</button>
             </form>
             <div id="connection-message"></div>
             <hr>
 
-            <h3 id="reports" style="color: #4f46e5;">Submit New Medical Report</h3>
-            <p>Use this form to add a record of a blood test, prescription, or other report.</p>
-            
+            <h3 id="submit-report" style="color: #4f46e5;">Submit New Report</h3>
             <form id="report-form" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
-                <input type="text" name="title" placeholder="Report Title (e.g., Annual Blood Panel)" required 
-                    style="padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
-                
+                <input type="text" name="title" placeholder="Report Title" required style="padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
                 <select name="report_type" required style="padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
                     <option value="">-- Select Report Type --</option>
                     <option value="Blood Test">Blood Test</option>
-                    <option value="Imaging Scan">Imaging Scan (MRI/X-Ray)</option>
+                    <option value="Imaging Scan">Imaging Scan</option>
                     <option value="Prescription">Prescription</option>
                     <option value="Consultation Notes">Consultation Notes</option>
                     <option value="Other">Other</option>
                 </select>
-                
-                <textarea name="description" placeholder="Key findings or detailed notes (optional)" rows="3"
-                    style="padding: 10px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
-                
-                <button type="submit" style="background-color: #10b981;">Submit Report</button>
+                <textarea name="description" placeholder="Key findings (optional)" rows="3" style="padding: 10px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
+                <button type="submit" style="background-color: #10b981;">Submit & Analyze</button>
                 <div id="report-message" style="margin-top: 5px; font-size: 0.9em;"></div>
             </form>
         
-            <h3 style="color: #4f46e5;">My Uploaded Reports</h3>
-            <div id="reports-list-container" style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 4px;">
-                <p style="text-align: center; color: #777;">Loading medical reports...</p>
+            <h3 id="my-reports" style="color: #4f46e5;">My Reports</h3>
+            <div id="reports-list-container" style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 4px; max-height: 300px; overflow-y: auto;">
+                <p style="text-align: center; color: #777;">Loading...</p>
             </div>
             {% endif %}
 
             {% if is_doctor %}
-            
-            <h3 id="pending-requests" style="color: #4f46e5;">Incoming Connection Requests</h3>
-            <div id="requests-container" style="margin-bottom: 20px;">
-                <p>Loading requests...</p>
-            </div>
+            <h3 id="pending-requests" style="color: #4f46e5;">Pending Requests</h3>
+            <div id="requests-container" style="margin-bottom: 20px;"><p>Loading...</p></div>
             <hr>
-
-            <h3 id="my-patients" style="color: #4f46e5;">My Connected Patients</h3>
-            <div id="patients-list-container">
-                <p>Loading patients...</p>
-            </div>
-            
+            <h3 id="my-patients" style="color: #4f46e5;">My Patients</h3>
+            <div id="patients-list-container"><p>Loading...</p></div>
+            <div id="patient-reports-display" style="margin-top:20px; border-top:2px dashed #ccc; padding: 15px; display:none; background-color: #f9fafb; border-radius: 8px;"></div>
             {% endif %}
-            
+
+            <hr style="margin: 30px 0;">
+            <h2 id="appointments-section" style="color: #4f46e5;">Appointments</h2>
+
+            {% if is_patient %}
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h4 style="margin-top: 0;">Book Appointment</h4>
+                <form id="appointment-form" style="display: grid; gap: 15px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <input type="email" name="doctor_email" placeholder="Doctor's Email" required style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        <input type="datetime-local" name="appointment_time" required style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                    <input type="text" name="title" placeholder="Reason / Title" required style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    <button type="submit" style="background-color: #4f46e5; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer;">Schedule</button>
+                    <div id="appt-message" style="font-size: 0.9em;"></div>
+                </form>
+            </div>
+            {% endif %}
+
+            <h3>Schedule</h3>
+            <div id="appointments-list-container"><p>Loading...</p></div>
         </main>
     </div>
 
@@ -125,8 +149,79 @@
     document.addEventListener('DOMContentLoaded', () => {
         const userType = "{{ user.user_type }}";
 
-        // --- PATIENT LOGIC ---
+        // ================= VOICE RECORDING LOGIC =================
+        const voiceBtn = document.getElementById('voice-btn');
+        const voiceStatus = document.getElementById('voice-status');
+        const queryInput = document.getElementById('query-input');
+        let mediaRecorder;
+        let audioChunks = [];
+
+        if (voiceBtn) {
+            // Mouse Events
+            voiceBtn.addEventListener('mousedown', startRecording);
+            voiceBtn.addEventListener('mouseup', stopRecording);
+            voiceBtn.addEventListener('mouseleave', stopRecording); // Stop if drag out
+            // Touch Events (Mobile)
+            voiceBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startRecording(); });
+            voiceBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopRecording(); });
+        }
+
+        async function startRecording() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert("Microphone not supported.");
+                return;
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+                mediaRecorder.start();
+                
+                voiceStatus.innerText = "Listening... 🔴";
+                voiceBtn.classList.add("recording");
+            } catch (err) {
+                console.error("Mic Error:", err);
+                voiceStatus.innerText = "Mic access denied.";
+            }
+        }
+
+        function stopRecording() {
+            if (!mediaRecorder || mediaRecorder.state === "inactive") return;
+            mediaRecorder.stop();
+            voiceStatus.innerText = "Processing...";
+            voiceBtn.classList.remove("recording");
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const formData = new FormData();
+                formData.append("audio_file", audioBlob, "recording.webm");
+
+                try {
+                    const response = await fetch('/transcribe', { method: 'POST', body: formData });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.text) {
+                            queryInput.value = data.text;
+                            voiceStatus.innerText = "Transcribed!";
+                        } else {
+                            voiceStatus.innerText = "Could not hear you.";
+                        }
+                    } else {
+                        voiceStatus.innerText = "Transcription failed.";
+                    }
+                } catch (e) {
+                    voiceStatus.innerText = "Network error.";
+                }
+                setTimeout(() => voiceStatus.innerText = "", 2000);
+            };
+        }
+
+        // ================= APPOINTMENTS & CONNECTIONS =================
+        loadAppointments();
+
         if (userType === 'patient') {
+            // Connection Request
             const connForm = document.getElementById('connection-form');
             if (connForm) {
                 connForm.addEventListener('submit', async (e) => {
@@ -134,144 +229,127 @@
                     const docEmail = document.getElementById('doctor-email-input').value;
                     const msgDiv = document.getElementById('connection-message');
                     msgDiv.innerHTML = "Sending...";
-
                     try {
                         const response = await fetch('/connections/', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ doctor_email: docEmail, patient_email: "{{ user.email }}" })
+                            body: JSON.stringify({ doctor_email: docEmail })
                         });
-
                         if (response.ok) {
-                            msgDiv.innerHTML = '<span style="color:green">Request sent successfully!</span>';
+                            msgDiv.innerHTML = '<span style="color:green">Sent!</span>';
                             connForm.reset();
                         } else {
                             const err = await response.json();
-                            msgDiv.innerHTML = `<span style="color:red">Error: ${err.detail}</span>`;
+                            msgDiv.innerHTML = `<span style="color:red">${err.detail}</span>`;
                         }
-                    } catch (error) {
-                        msgDiv.innerHTML = '<span style="color:red">Network error.</span>';
-                    }
+                    } catch (error) { msgDiv.innerHTML = '<span style="color:red">Error.</span>'; }
+                });
+            }
+
+            // Book Appointment
+            const apptForm = document.getElementById('appointment-form');
+            if (apptForm) {
+                apptForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(apptForm);
+                    const data = Object.fromEntries(formData.entries());
+                    const msg = document.getElementById('appt-message');
+                    if(data.appointment_time) data.appointment_time = new Date(data.appointment_time).toISOString();
+
+                    try {
+                        const response = await fetch('/appointments/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(data)
+                        });
+                        if (response.ok) {
+                            msg.innerHTML = '<span style="color:green">Scheduled!</span>';
+                            apptForm.reset();
+                            loadAppointments();
+                        } else {
+                            const err = await response.json();
+                            msg.innerHTML = `<span style="color:red">${err.detail}</span>`;
+                        }
+                    } catch (error) { msg.innerHTML = '<span style="color:red">Error.</span>'; }
                 });
             }
         }
 
-        // --- DOCTOR LOGIC ---
         if (userType === 'doctor') {
             loadPendingRequests();
             loadConnectedPatients();
         }
 
-        // 1. Load Requests
         async function loadPendingRequests() {
             const container = document.getElementById('requests-container');
             try {
                 const response = await fetch('/connections/pending');
                 if (response.ok) {
                     const requests = await response.json();
-                    if (requests.length === 0) {
-                        container.innerHTML = '<p style="color:#777; font-style:italic;">No pending requests.</p>';
-                        return;
-                    }
-                    
-                    container.innerHTML = requests.map(req => `
-                        <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; background-color: #f9fafb;">
-                            <div>
-                                <strong>${req.patient_email}</strong><br>
-                                <span style="font-size: 0.8em; color: #555;">Requested: ${new Date(req.request_date).toLocaleDateString()}</span>
-                            </div>
-                            <button onclick="acceptRequest('${req.id}')" style="background-color: #10b981; color: white; padding: 5px 10px; border:none; border-radius:4px; cursor:pointer;">Accept</button>
-                        </div>
-                    `).join('');
+                    container.innerHTML = requests.length ? requests.map(req => `
+                        <div style="border:1px solid #ccc; padding:10px; margin-bottom:10px; border-radius:5px; display:flex; justify-content:space-between; align-items:center; background:#f9fafb;">
+                            <div><strong>${req.patient_email}</strong><br><small>${new Date(req.request_date).toLocaleDateString()}</small></div>
+                            <button onclick="acceptRequest('${req.id}')" style="background:#10b981; color:white; padding:5px 10px; border:none; border-radius:4px; cursor:pointer;">Accept</button>
+                        </div>`).join('') : '<p style="color:#777;">No pending requests.</p>';
                 }
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) { console.error(e); }
         }
 
-        // 2. Load Patients (UPDATED with "View" button)
         async function loadConnectedPatients() {
             const container = document.getElementById('patients-list-container');
             try {
                 const response = await fetch('/doctor/patients');
                 if (response.ok) {
                     const patients = await response.json();
-                    if (patients.length === 0) {
-                        container.innerHTML = '<p style="color:#777;">No connected patients yet.</p>';
-                        return;
-                    }
-                    // Render list with "View Records" button
-                    container.innerHTML = `<ul style="list-style:none; padding:0;">${patients.map(email => `
+                    container.innerHTML = patients.length ? `<ul style="list-style:none; padding:0;">${patients.map(email => `
                         <li style="background:white; border:1px solid #eee; padding:10px; margin-bottom:8px; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">
                             <span>${email}</span>
-                            <button onclick="viewPatientReports('${email}')" style="background-color:#4f46e5; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:0.9em;">
-                                View Records
-                            </button>
-                        </li>
-                    `).join('')}</ul>
-                    <div id="patient-reports-display" style="margin-top:20px; border-top:2px dashed #ccc; padding-top:10px; display:none;">
-                        </div>`;
-                }
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
-        // 3. Accept Request Action
-        window.acceptRequest = async function(requestId) {
-            if (!confirm("Accept this patient connection?")) return;
-            try {
-                const response = await fetch(`/connections/${requestId}/accept`, { method: 'PUT' });
-                if (response.ok) {
-                    alert("Connected!");
-                    loadPendingRequests();
-                    loadConnectedPatients();
-                } else {
-                    alert("Failed to accept.");
+                            <button onclick="viewPatientReports('${email}')" style="background:#4f46e5; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:0.9em;">View Records</button>
+                        </li>`).join('')}</ul>` : '<p style="color:#777;">No patients.</p>';
                 }
             } catch (e) { console.error(e); }
         }
 
-        // 4. View Patient Reports Action (NEW)
+        window.acceptRequest = async function(requestId) {
+            if (!confirm("Accept?")) return;
+            try {
+                const response = await fetch(`/connections/${requestId}/accept`, { method: 'PUT' });
+                if (response.ok) { alert("Connected!"); loadPendingRequests(); loadConnectedPatients(); }
+            } catch (e) { alert("Error."); }
+        }
+
         window.viewPatientReports = async function(patientEmail) {
             const displayArea = document.getElementById('patient-reports-display');
             displayArea.style.display = 'block';
-            displayArea.innerHTML = `<h4 style="color:#4f46e5;">Medical Records for: ${patientEmail}</h4><p>Loading...</p>`;
-            
+            displayArea.innerHTML = `<h4>Records: ${patientEmail}</h4><p>Loading...</p>`;
             try {
-                // Fetch reports using the route we already have in doctor_routes.py
                 const response = await fetch(`/doctor/patients/${patientEmail}/reports`);
-                
                 if (response.ok) {
                     const reports = await response.json();
-                    
-                    if (reports.length === 0) {
-                        displayArea.innerHTML += '<p>No records found for this patient.</p>';
-                        return;
-                    }
-
-                    // Render the reports (Re-using the style from app.js)
-                    const reportsHtml = reports.map(report => `
-                        <div style="border: 1px solid #ccc; margin-bottom: 10px; padding: 10px; border-radius: 6px; background-color: #fff;">
-                            <strong>${report.title}</strong> 
-                            <span style="float: right; font-size: 0.8em; color: #777;">${new Date(report.upload_date).toLocaleDateString()}</span>
-                            <p style="margin: 5px 0 0; font-size: 0.9em;">Type: ${report.report_type}</p>
-                            ${report.description ? `<p style="font-size: 0.9em; color: #555; margin-top: 5px; background:#f9f9f9; padding:5px;">${report.description}</p>` : ''}
-                        </div>
-                    `).join('');
-
-                    displayArea.innerHTML = `<h4 style="color:#4f46e5;">Medical Records for: ${patientEmail}</h4>` + reportsHtml;
-                    
-                    // Scroll to view
+                    displayArea.innerHTML = reports.length ? `<h4>Records: ${patientEmail}</h4>` + reports.map(r => `
+                        <div style="border:1px solid #e5e7eb; margin-bottom:10px; padding:12px; border-radius:6px; background:#fff;">
+                            <div style="display:flex; justify-content:space-between;"><strong>${r.title}</strong><small>${new Date(r.upload_date).toLocaleDateString()}</small></div>
+                            <small style="background:#e0e7ff; color:#4338ca; padding:2px 5px; border-radius:4px;">${r.report_type}</small>
+                            ${r.description ? `<div style="font-size:0.9em; margin-top:8px; background:#f3f4f6; padding:8px;">${r.description}</div>` : ''}
+                        </div>`).join('') : '<p>No records.</p>';
                     displayArea.scrollIntoView({ behavior: 'smooth' });
-
-                } else {
-                    displayArea.innerHTML = '<p style="color:red;">Error fetching reports. You might not be authorized.</p>';
                 }
-            } catch (e) {
-                console.error(e);
-                displayArea.innerHTML = '<p style="color:red;">Network error.</p>';
-            }
+            } catch (e) { displayArea.innerHTML = '<p style="color:red">Error.</p>'; }
+        }
+
+        async function loadAppointments() {
+            const container = document.getElementById('appointments-list-container');
+            try {
+                const response = await fetch('/appointments/');
+                if (response.ok) {
+                    const appts = await response.json();
+                    container.innerHTML = appts.length ? appts.map(a => `
+                        <div style="border-left:4px solid #4f46e5; background:white; padding:10px; margin-bottom:10px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                            <div style="display:flex; justify-content:space-between;"><strong>${a.title}</strong><span style="color:#4f46e5;">${new Date(a.appointment_time).toLocaleString()}</span></div>
+                            <small>${a.doctor_email ? 'Doctor: '+a.doctor_email : 'Patient: '+a.patient_email} | Status: ${a.status}</small>
+                        </div>`).join('') : '<p style="color:#777;">No appointments.</p>';
+                }
+            } catch (e) { container.innerHTML = '<p>Error.</p>'; }
         }
     });
     </script>

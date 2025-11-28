@@ -1,6 +1,6 @@
 # main.py
 
-from fastapi import FastAPI, Depends, HTTPException, status, Form, Request
+from fastapi import FastAPI, Depends, HTTPException, status, Form, Request, UploadFile, File
 from fastapi.staticfiles import StaticFiles 
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -14,6 +14,9 @@ from routes import user_routes, report_routes, doctor_routes, connection_routes,
 from security import get_current_authenticated_user 
 from database import chat_messages_collection 
 from models.schemas import User, ChatMessage
+import shutil
+import os
+from ai_core.transcriber import transcribe_audio
 
 app = FastAPI(
     title="AarogyaAI",
@@ -109,3 +112,30 @@ async def get_chat_history(current_user: User = Depends(get_current_authenticate
         </div>
         """
     return HTMLResponse(html_content)
+
+@app.post("/transcribe")
+async def transcribe_voice(audio_file: UploadFile = File(...)):
+    """
+    Receives an audio blob, saves it temporarily, transcribes it, and returns text.
+    """
+    temp_filename = f"temp_{audio_file.filename}"
+    
+    try:
+        # 1. Save the uploaded file temporarily
+        with open(temp_filename, "wb") as buffer:
+            shutil.copyfileobj(audio_file.file, buffer)
+            
+        # 2. Transcribe using Whisper
+        transcribed_text = transcribe_audio(temp_filename)
+        
+        # 3. Cleanup
+        os.remove(temp_filename)
+        
+        return {"text": transcribed_text}
+        
+    except Exception as e:
+        print(f"Transcription API Error: {e}")
+        # Clean up if error
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
+        return {"text": "", "error": str(e)}

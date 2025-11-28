@@ -1,7 +1,9 @@
 # routes/appointment_routes.py
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List
 from database import appointments_collection
+# Ensure AppointmentCreate is imported
 from models.schemas import Appointment, AppointmentCreate, User
 from security import get_current_authenticated_user
 
@@ -9,12 +11,11 @@ router = APIRouter()
 
 @router.post("/", response_model=Appointment, status_code=status.HTTP_201_CREATED)
 async def schedule_appointment(
-    appointment_data: AppointmentCreate,
+    appointment_data: AppointmentCreate, # <--- Uses the simple input schema
     current_user: User = Depends(get_current_authenticated_user)
 ):
     """
     Allows a patient to schedule an appointment with a doctor.
-    NOTE: In a real app, you would add logic here to verify the doctor exists.
     """
     
     if current_user.user_type != 'patient':
@@ -23,12 +24,16 @@ async def schedule_appointment(
             detail="Only patients can initiate appointment scheduling."
         )
 
-    # Ensure the patient email in the payload matches the current user
-    appointment_data.patient_email = current_user.email
-    
-    appointment_dict = appointment_data.model_dump(exclude={'id'})
+    # 1. Convert input to dict
+    appointment_dict = appointment_data.model_dump()
+
+    # 2. Manually add the missing system fields
+    # We trust the session, not the user input, for who the patient is
+    appointment_dict["patient_email"] = current_user.email
+    appointment_dict["status"] = "scheduled"
     
     try:
+        # 3. Save to MongoDB
         result = await appointments_collection.insert_one(appointment_dict)
         appointment_dict["id"] = str(result.inserted_id)
         
@@ -49,6 +54,7 @@ async def list_user_appointments(
     
     query_filter = {}
     
+    # Filter by the user's role
     if current_user.user_type == 'patient':
         query_filter["patient_email"] = current_user.email
     elif current_user.user_type == 'doctor':
@@ -67,7 +73,3 @@ async def list_user_appointments(
             appointment['id'] = str(appointment['_id'])
             
     return [Appointment(**appointment) for appointment in appointments_list]
-
-
-# NOTE: You would typically add PUT routes for updating status (e.g., doctor confirming appointment).
-
