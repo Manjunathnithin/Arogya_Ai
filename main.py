@@ -8,12 +8,12 @@ from pydantic import BaseModel
 from typing import List
 
 # Import our tools and schemas
-from ai_core.rag_engine import get_rag_response, get_summary_response # UPDATED: Import async services
+from ai_core.rag_engine import get_rag_response, get_summary_response 
 from routes import user_routes, report_routes, doctor_routes, connection_routes, admin_routes,appointment_routes, ui_routes
 
-from security import get_current_authenticated_user # UPDATED: Use new session dependency
-from database import chat_messages_collection # Motor collection
-from models.schemas import User, ChatRequest, ChatMessage, ChatMessageBase
+from security import get_current_authenticated_user 
+from database import chat_messages_collection 
+from models.schemas import User, ChatMessage
 
 app = FastAPI(
     title="AarogyaAI",
@@ -24,7 +24,7 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Include all the different routers for our application (KEEP AS IS)
+# Include all the different routers for our application (CRUCIAL FOR 404 FIX)
 app.include_router(ui_routes.router, prefix="", tags=["UI & Pages"])
 app.include_router(user_routes.router, prefix="/users", tags=["Users"])
 app.include_router(report_routes.router, prefix="/reports", tags=["Reports"])
@@ -57,7 +57,6 @@ async def chat_with_rag(
             query_to_save = "Request for Medical Record Summary"
         
         elif action == 'ask':
-            # This calls the RAG logic (which now handles Doctor/Patient context correctly from previous fix)
             ai_response_text = await get_rag_response(query, user_email=current_user.email)
         
         # 2. Save to Database
@@ -68,8 +67,7 @@ async def chat_with_rag(
         )
         await chat_messages_collection.insert_one(chat_message.model_dump())
 
-        # 3. Return HTML Fragment with Animation Class
-        # Note the 'animate-message-entry' class on the wrapper div
+        # 3. Return HTML Fragment
         return HTMLResponse(f"""
         <div class="flex flex-col space-y-2 mb-4 animate-message-entry">
             <div class="self-end bg-indigo-100 text-indigo-900 p-3 rounded-2xl rounded-tr-none max-w-[85%] text-sm shadow-sm border border-indigo-200">
@@ -86,7 +84,6 @@ async def chat_with_rag(
         print(f"Chat Error: {e}")
         return HTMLResponse(f'<div class="text-xs text-red-500 p-2 text-center bg-red-50 rounded-lg">Error processing request. Please try again.</div>')
 
-# 3. REPLACE the existing @app.get("/chat/history") endpoint with this:
 @app.get("/chat/history", response_class=HTMLResponse)
 async def get_chat_history(current_user: User = Depends(get_current_authenticated_user)):
     history_cursor = chat_messages_collection.find(
@@ -100,7 +97,6 @@ async def get_chat_history(current_user: User = Depends(get_current_authenticate
 
     html_content = ""
     for msg in history_list:
-        # We do NOT add the animation class to history items, so they load instantly
         html_content += f"""
         <div class="flex flex-col space-y-2 mb-4">
             <div class="self-end bg-indigo-100 text-indigo-900 p-3 rounded-2xl rounded-tr-none max-w-[85%] text-sm shadow-sm border border-indigo-200">

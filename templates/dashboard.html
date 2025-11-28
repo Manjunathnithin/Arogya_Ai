@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>AarogyaAI Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+</head>
+<body>
+    <header>
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center;">
+            <h1>AarogyaAI | {{ user.user_type | upper }} Dashboard</h1>
+            <form action="/users/logout" method="post" style="display: inline;">
+                <button type="submit">Log Out</button>
+            </form>
+        </div>
+    </header>
+
+    <div class="container dashboard-layout">
+        <aside class="sidebar">
+            <h3 style="margin-top: 0; color: #4f46e5;">Welcome, {{ user.first_name }}!</h3>
+            <p><strong>Email:</strong> {{ user.email }}</p>
+            <p><strong>Role:</strong> {{ user.user_type | capitalize }}</p>
+            <hr>
+
+            <h4 style="color: #4f46e5;">Features</h4>
+            <ul>
+                <li><a href="#reports">Medical Records</a></li>
+                <li><a href="#appointments">Appointments</a></li>
+                {% if is_doctor %}
+                <li><a href="#connections">Patient Connections</a></li>
+                {% endif %}
+            </ul>
+        </aside>
+
+        <main class="main-content">
+            <h2>AI Medical Assistant</h2>
+            
+            <div id="chat-history-container" style="height: 50vh;">
+                <div class="flex flex-col items-center justify-center h-full text-gray-400 text-xs italic space-y-2">
+                    <span>Loading chat history...</span>
+                </div>
+            </div>
+
+            <form id="chat-form" class="chat-input-area">
+                <input type="text" id="query-input" name="query" placeholder="Ask a medical question or analyze your records..." required>
+                <button type="submit" name="action" value="ask">Ask</button>
+                
+                {% if is_patient %}
+                <button type="submit" name="action" value="summarize" style="background-color: #3b82f6;">Summarize Records</button>
+                {% endif %}
+            </form>
+
+            <hr style="margin: 20px 0;">
+
+            {% if is_patient %}
+            <h3 id="reports" style="color: #4f46e5;">Submit New Medical Report</h3>
+            <p>Use this form to add a record of a blood test, prescription, or other report.</p>
+            
+            <form id="report-form" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+                <input type="text" name="title" placeholder="Report Title (e.g., Annual Blood Panel)" required 
+                    style="padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                
+                <select name="report_type" required style="padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                    <option value="">-- Select Report Type --</option>
+                    <option value="Blood Test">Blood Test</option>
+                    <option value="Imaging Scan">Imaging Scan (MRI/X-Ray)</option>
+                    <option value="Prescription">Prescription</option>
+                    <option value="Consultation Notes">Consultation Notes</option>
+                    <option value="Other">Other</option>
+                </select>
+                
+                <textarea name="description" placeholder="Key findings or detailed notes (optional)" rows="3"
+                    style="padding: 10px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
+                
+                <button type="submit" style="background-color: #10b981;">Submit Report</button>
+                <div id="report-message" style="margin-top: 5px; font-size: 0.9em;"></div>
+            </form>
+        
+            <h3 style="color: #4f46e5;">My Uploaded Reports</h3>
+            <div id="reports-list-container" style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 4px;">
+                <p style="text-align: center; color: #777;">Loading medical reports...</p>
+            </div>
+        {% endif %}
+            
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
