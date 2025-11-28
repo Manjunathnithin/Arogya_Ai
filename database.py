@@ -2,6 +2,7 @@
 
 from motor.motor_asyncio import AsyncIOMotorClient 
 import os
+import certifi  # <--- Import this
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -11,8 +12,12 @@ if not MONGO_URI:
     # IMPORTANT: This exception will be raised if .env is missing or MONGO_URI is empty
     raise ValueError("MONGO_URI not found in .env file.")
 
-
-client = AsyncIOMotorClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+# <--- Add tlsCAFile=certifi.where() to the constructor
+client = AsyncIOMotorClient(
+    MONGO_URI, 
+    serverSelectionTimeoutMS=5000,
+    tlsCAFile=certifi.where() 
+)
 
 db = client.aarogyadb 
 

@@ -25,16 +25,23 @@
 
             <h4 style="color: #4f46e5;">Features</h4>
             <ul>
+                {% if is_patient %}
+                <li><a href="#chat-section">AI Assistant</a></li>
+                <li><a href="#connect-doctor">Connect with Doctor</a></li>
                 <li><a href="#reports">Medical Records</a></li>
                 <li><a href="#appointments">Appointments</a></li>
+                {% endif %}
+
                 {% if is_doctor %}
-                <li><a href="#connections">Patient Connections</a></li>
+                <li><a href="#chat-section">AI Assistant</a></li>
+                <li><a href="#pending-requests">Connection Requests</a></li>
+                <li><a href="#my-patients">My Patients</a></li>
                 {% endif %}
             </ul>
         </aside>
 
         <main class="main-content">
-            <h2>AI Medical Assistant</h2>
+            <h2 id="chat-section">AI Medical Assistant</h2>
             
             <div id="chat-history-container" style="height: 50vh;">
                 <div class="flex flex-col items-center justify-center h-full text-gray-400 text-xs italic space-y-2">
@@ -54,6 +61,17 @@
             <hr style="margin: 20px 0;">
 
             {% if is_patient %}
+            
+            <h3 id="connect-doctor" style="color: #4f46e5;">Connect with a Doctor</h3>
+            <p>Enter a doctor's email to share your records with them.</p>
+            <form id="connection-form" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <input type="email" id="doctor-email-input" name="doctor_email" placeholder="Doctor's Email (e.g., dr.strange@arogya.ai)" required 
+                    style="padding: 10px; border: 1px solid #ccc; border-radius: 4px; flex-grow: 1;">
+                <button type="submit" style="background-color: #8b5cf6;">Send Request</button>
+            </form>
+            <div id="connection-message"></div>
+            <hr>
+
             <h3 id="reports" style="color: #4f46e5;">Submit New Medical Report</h3>
             <p>Use this form to add a record of a blood test, prescription, or other report.</p>
             
@@ -81,11 +99,132 @@
             <div id="reports-list-container" style="border: 1px solid #e0e0e0; padding: 15px; border-radius: 4px;">
                 <p style="text-align: center; color: #777;">Loading medical reports...</p>
             </div>
-        {% endif %}
+            {% endif %}
+
+            {% if is_doctor %}
+            
+            <h3 id="pending-requests" style="color: #4f46e5;">Incoming Connection Requests</h3>
+            <div id="requests-container" style="margin-bottom: 20px;">
+                <p>Loading requests...</p>
+            </div>
+            <hr>
+
+            <h3 id="my-patients" style="color: #4f46e5;">My Connected Patients</h3>
+            <div id="patients-list-container">
+                <p>Loading patients...</p>
+            </div>
+            
+            {% endif %}
             
         </main>
     </div>
 
     <script src="/static/app.js"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const userType = "{{ user.user_type }}";
+
+        // --- PATIENT LOGIC: SEND CONNECTION REQUEST ---
+        if (userType === 'patient') {
+            const connForm = document.getElementById('connection-form');
+            if (connForm) {
+                connForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const docEmail = document.getElementById('doctor-email-input').value;
+                    const msgDiv = document.getElementById('connection-message');
+                    msgDiv.innerHTML = "Sending...";
+
+                    try {
+                        const response = await fetch('/connections/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ doctor_email: docEmail, patient_email: "{{ user.email }}" }) // patient_email is redundant but safe
+                        });
+
+                        if (response.ok) {
+                            msgDiv.innerHTML = '<span style="color:green">Request sent successfully!</span>';
+                            connForm.reset();
+                        } else {
+                            const err = await response.json();
+                            msgDiv.innerHTML = `<span style="color:red">Error: ${err.detail}</span>`;
+                        }
+                    } catch (error) {
+                        msgDiv.innerHTML = '<span style="color:red">Network error.</span>';
+                    }
+                });
+            }
+        }
+
+        // --- DOCTOR LOGIC: VIEW & ACCEPT REQUESTS ---
+        if (userType === 'doctor') {
+            loadPendingRequests();
+            loadConnectedPatients();
+        }
+
+        async function loadPendingRequests() {
+            const container = document.getElementById('requests-container');
+            try {
+                const response = await fetch('/connections/pending');
+                if (response.ok) {
+                    const requests = await response.json();
+                    if (requests.length === 0) {
+                        container.innerHTML = '<p style="color:#777;">No pending requests.</p>';
+                        return;
+                    }
+                    
+                    container.innerHTML = requests.map(req => `
+                        <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>Patient:</strong> ${req.patient_email}<br>
+                                <span style="font-size: 0.8em; color: #555;">Requested: ${new Date(req.request_date).toLocaleDateString()}</span>
+                            </div>
+                            <button onclick="acceptRequest('${req.id}')" style="background-color: #10b981; padding: 5px 10px;">Accept</button>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<p style="color:red">Failed to load requests.</p>';
+                }
+            } catch (e) {
+                container.innerHTML = '<p style="color:red">Network error.</p>';
+            }
+        }
+
+        async function loadConnectedPatients() {
+            const container = document.getElementById('patients-list-container');
+            try {
+                const response = await fetch('/doctor/patients');
+                if (response.ok) {
+                    const patients = await response.json();
+                    if (patients.length === 0) {
+                        container.innerHTML = '<p style="color:#777;">No connected patients yet.</p>';
+                        return;
+                    }
+                    container.innerHTML = `<ul>${patients.map(email => `<li>${email}</li>`).join('')}</ul>`;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // Make acceptRequest available globally
+        window.acceptRequest = async function(requestId) {
+            if (!confirm("Accept this patient connection?")) return;
+
+            try {
+                const response = await fetch(`/connections/${requestId}/accept`, { method: 'PUT' });
+                if (response.ok) {
+                    alert("Connected!");
+                    loadPendingRequests(); // Refresh list
+                    loadConnectedPatients(); // Refresh list
+                } else {
+                    alert("Failed to accept request.");
+                }
+            } catch (e) {
+                alert("Error connecting.");
+            }
+        }
+    });
+    </script>
 </body>
 </html>

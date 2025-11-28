@@ -1,7 +1,7 @@
 # models/schemas.py
 from bson import ObjectId
 from pydantic import BaseModel, EmailStr
-from datetime import datetime, timezone, timedelta # timedelta is required for UserSession
+from datetime import datetime, timezone, timedelta 
 
 # Constants based on security.py
 SESSION_COOKIE_NAME = "session_token"
@@ -30,7 +30,6 @@ class UserSession(BaseModel):
     user_type: str
     created_at: datetime = datetime.now(timezone.utc)
     last_active: datetime = datetime.now(timezone.utc)
-    # FIX: Use timedelta to add duration, not timezone
     expires_at: datetime = datetime.now(timezone.utc) + timedelta(minutes=SESSION_EXPIRATION_MINUTES)
     
 class ChatMessageBase(BaseModel):
@@ -41,12 +40,17 @@ class ChatMessage(ChatMessageBase):
     owner_email: str
     timestamp: datetime = datetime.now(timezone.utc)
 
+# --- REPORT MODELS (UPDATED) ---
 
-class ReportBase(BaseModel):
+# 1. Model for CREATING a report (What the frontend sends)
+class ReportCreate(BaseModel):
     title: str
     description: str | None = None
     report_type: str # e.g., 'Blood Test', 'MRI Scan', 'Prescription'
-    owner_email: EmailStr # Links the report to the user
+
+# 2. Model for DATABASE/READING (Includes system fields like email/date)
+class ReportBase(ReportCreate):
+    owner_email: EmailStr 
     upload_date: datetime = datetime.now(timezone.utc)
 
 class Report(ReportBase):
@@ -57,7 +61,6 @@ class Report(ReportBase):
         json_encoders = {ObjectId: str}
 
 # Helper for Pydantic/MongoDB
-# Pydantic configuration for MongoDB object IDs
 class PyObjectId(ObjectId):
     @classmethod
     def __get_validators__(cls):
@@ -75,27 +78,16 @@ class PyObjectId(ObjectId):
 
 # Appointment Models
 class AppointmentBase(BaseModel):
-    # Subject of the appointment (e.g., "Annual Checkup", "Follow-up on Bloodwork")
     title: str
-    
-    # ISO 8601 formatted datetime string
     appointment_time: datetime
-    
-    # Status can be 'scheduled', 'completed', 'cancelled'
     status: str = 'scheduled' 
-    
-    # Identifier for the Patient
     patient_email: EmailStr
-    
-    # Identifier for the Doctor/Provider
     doctor_email: EmailStr
 
 class AppointmentCreate(AppointmentBase):
-    # When a patient creates an appointment, they only need these fields
     pass
 
 class Appointment(AppointmentBase):
-    # Model used when retrieving from the database
     id: str | None = None
     
     class Config:
@@ -106,16 +98,13 @@ class Appointment(AppointmentBase):
 class ConnectionRequestBase(BaseModel):
     patient_email: EmailStr
     doctor_email: EmailStr
-    # Status can be 'pending', 'accepted', 'rejected'
     status: str = 'pending' 
     request_date: datetime = datetime.now(timezone.utc)
     
 class ConnectionRequestCreate(ConnectionRequestBase):
-    # Only need the doctor's email when creating the request
     doctor_email: EmailStr
 
 class ConnectionRequest(ConnectionRequestBase):
-    # Model used when retrieving from the database
     id: str | None = None
     
     class Config:
