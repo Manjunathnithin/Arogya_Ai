@@ -1,28 +1,136 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AarogyaAI Login</title>
+    <meta charset="UTF-8">
+    <title>AarogyaAI | Login / Register</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        /* Ensures the register form has slightly more space for a cleaner look */
+        .auth-container.is-register {
+            max-width: 500px !important;
+        }
+        #role-swap-btn {
+            background-color: var(--secondary-color);
+            transition: background-color 0.2s;
+        }
+        #role-swap-btn.doctor {
+            background-color: #8b5cf6; /* A distinct color for Doctor role */
+        }
+    </style>
 </head>
-<body>
-    <h1>Login / Register</h1>
-    <form action="/users/login" method="post">
-        <h2>Login</h2>
-        <input type="email" name="email" placeholder="Email" required><br>
-        <input type="password" name="password" placeholder="Password" required><br>
-        <button type="submit">Log In</button>
-    </form>
-    <hr>
-    <form action="/users/register" method="post">
-        <h2>Register</h2>
-        <input type="text" name="first_name" placeholder="First Name" required><br>
-        <input type="text" name="last_name" placeholder="Last Name" required><br>
-        <input type="email" name="email" placeholder="Email" required><br>
-        <input type="password" name="password" placeholder="Password" required><br>
-        <select name="user_type" required>
-            <option value="patient">Patient</option>
-            <option value="doctor">Doctor</option>
-        </select><br>
-        <button type="submit">Register</button>
-    </form>
+<body class="auth-page">
+    <div id="auth-main-container" class="auth-container">
+        
+        <div class="auth-header">
+            <h1>AarogyaAI Platform</h1>
+            <p>Your AI-Powered Medical Assistant Portal</p>
+        </div>
+
+        <div class="auth-forms-wrapper">
+            
+            <div id="login-section" class="form-section">
+                <h2>Log In to Your Account</h2>
+                <form action="/users/login" method="post">
+                    <div class="form-group">
+                        <input type="email" name="email" placeholder="Email Address" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="password" name="password" placeholder="Password" required>
+                    </div>
+                    <button type="submit">Log In</button>
+                </form>
+                
+                <a href="#" id="to-register-link" class="link-switch">Need an account? Register Here &rarr;</a>
+            </div>
+            
+            <div id="register-section" class="form-section hidden">
+                <h2>Create a New Account</h2>
+                <form action="/users/register" method="post">
+                    <div class="form-group" style="display: flex; gap: 10px;">
+                        <input type="text" name="first_name" placeholder="First Name" required style="flex: 1;">
+                        <input type="text" name="last_name" placeholder="Last Name" required style="flex: 1;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <input type="email" name="email" placeholder="Email Address" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="password" name="password" placeholder="Password" required>
+                    </div>
+                    
+                    <div class="form-group user-type-toggle-group">
+                        <button type="button" id="role-swap-btn" class="btn-secondary" data-current-role="patient" style="width: 100%;">
+                            Registering as: Patient
+                        </button>
+                        <input type="hidden" name="user_type" id="user-type-hidden-input" value="patient">
+                    </div>
+
+                    <button type="submit" class="btn-register">Register Account</button>
+                </form>
+
+                <a href="#" id="to-login-link" class="link-switch">&larr; Back to Login</a>
+            </div>
+            
+        </div>
+    </div>
+
+    <script>
+        const loginSection = document.getElementById('login-section');
+        const registerSection = document.getElementById('register-section');
+        const authContainer = document.getElementById('auth-main-container');
+        const roleSwapBtn = document.getElementById('role-swap-btn');
+        const userTypeHiddenInput = document.getElementById('user-type-hidden-input');
+        
+        // Function to switch between forms
+        function showForm(form) {
+            if (form === 'register') {
+                loginSection.classList.add('hidden');
+                registerSection.classList.remove('hidden');
+                authContainer.style.maxWidth = '600px'; 
+                authContainer.classList.add('is-register');
+            } else {
+                registerSection.classList.add('hidden');
+                loginSection.classList.remove('hidden');
+                authContainer.style.maxWidth = '450px'; 
+                authContainer.classList.remove('is-register');
+            }
+        }
+
+        // Role Swap Logic
+        if (roleSwapBtn) {
+            roleSwapBtn.addEventListener('click', () => {
+                let currentRole = roleSwapBtn.getAttribute('data-current-role');
+                
+                if (currentRole === 'patient') {
+                    // Switch to Doctor
+                    roleSwapBtn.setAttribute('data-current-role', 'doctor');
+                    userTypeHiddenInput.value = 'doctor';
+                    roleSwapBtn.textContent = 'Registering as: Doctor';
+                    roleSwapBtn.classList.add('doctor'); // Apply doctor styling
+                } else {
+                    // Switch back to Patient
+                    roleSwapBtn.setAttribute('data-current-role', 'patient');
+                    userTypeHiddenInput.value = 'patient';
+                    roleSwapBtn.textContent = 'Registering as: Patient';
+                    roleSwapBtn.classList.remove('doctor'); // Remove doctor styling
+                }
+            });
+        }
+
+
+        // Attach event listeners to links
+        document.getElementById('to-register-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            showForm('register');
+        });
+
+        document.getElementById('to-login-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            showForm('login');
+        });
+
+        // Initialize view on load
+        showForm('login');
+    </script>
 </body>
 </html>

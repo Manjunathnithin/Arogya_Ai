@@ -104,17 +104,19 @@ async function loadReportsList() {
     }
 }
 
-// Function 4. Handle Report Submission
+// Function 4. Handle Report Submission (FIXED FOR PURE JSON/TEXT SUBMISSION)
 const reportForm = document.getElementById('report-form');
 if (reportForm) {
     reportForm.addEventListener('submit', async (event) => {
         event.preventDefault();
 
+        // Get data and convert to JSON object
         const formData = new FormData(reportForm);
         const data = Object.fromEntries(formData.entries());
+        
         const reportMessage = document.getElementById('report-message');
         
-        // Remove description if it's empty to match the optional Pydantic field
+        // Remove empty description field if left blank (important for clean JSON)
         if (data.description === "") {
             delete data.description;
         }
@@ -122,25 +124,40 @@ if (reportForm) {
         try {
             const response = await fetch('/reports', {
                 method: 'POST',
+                // FINAL FIX: Send JSON and set Content-Type header
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
 
             if (response.status === 201) {
                 reportMessage.style.color = 'green';
-                reportMessage.textContent = 'Report submitted successfully!';
-                reportForm.reset(); // Clear form
-                loadReportsList(); // Refresh the list
+                reportMessage.textContent = 'Report submitted and sent for AI analysis!';
+                reportForm.reset(); 
+                loadReportsList(); 
             } else {
                 const error = await response.json();
                 reportMessage.style.color = 'red';
-                reportMessage.textContent = `Submission failed: ${error.detail || 'Unknown error'}`;
+
+                // Enhanced error display 
+                let errorMessage = `Submission failed: ${error.detail || 'Unknown error'}`;
+                if (response.status === 422 && error.detail && Array.isArray(error.detail)) {
+                    const detailMessages = error.detail.map(d => 
+                        `${d.loc.slice(-1)[0]} is required or invalid (${d.msg}).`
+                    ).join(' | ');
+                    errorMessage = `Validation Error: ${detailMessages}`;
+                }
+
+                reportMessage.textContent = errorMessage;
             }
         } catch (error) {
             console.error("Report submission error:", error);
             reportMessage.style.color = 'red';
-            reportMessage.textContent = 'An unexpected network error occurred.';
+            reportMessage.textContent = 'An unexpected network error occurred. Check server logs.';
         }
     });
 }
-loadReportsList();
+
+// Load reports on page load
+if (document.getElementById('reports-list-container')) {
+    loadReportsList();
+}

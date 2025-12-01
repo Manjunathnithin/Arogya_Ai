@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 
 from database import connection_requests_collection
-from models.schemas import ConnectionRequest, ConnectionRequestCreate, User
+# Import the new lean ConnectionRequestInput model
+from models.schemas import ConnectionRequest, ConnectionRequestInput, User 
 from security import get_current_authenticated_user
 from bson import ObjectId
 
@@ -14,7 +15,8 @@ router = APIRouter()
 
 @router.post("/", response_model=ConnectionRequest, status_code=status.HTTP_201_CREATED)
 async def create_connection_request(
-    request_data: ConnectionRequestCreate,
+    # Use the lean input model
+    request_data: ConnectionRequestInput, 
     current_user: User = Depends(get_current_authenticated_user)
 ):
     """
@@ -23,12 +25,14 @@ async def create_connection_request(
     if current_user.user_type != 'patient':
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only patients can send connection requests.")
 
-    # 1. Enforce patient email from authenticated user
-    request_data.patient_email = current_user.email
+    # 1. Prepare data and INJECT patient email from session
+    request_dict = request_data.model_dump()
+    request_dict["patient_email"] = current_user.email # <-- FIX: Injecting patient_email from session
+    request_dict["status"] = "pending"
     
     # 2. Check for existing pending or accepted request
     existing_request = await connection_requests_collection.find_one({
-        "patient_email": current_user.email,
+        "patient_email": request_dict["patient_email"],
         "doctor_email": request_data.doctor_email,
         "status": {"$in": ["pending", "accepted"]}
     })
@@ -40,7 +44,6 @@ async def create_connection_request(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A pending request already exists for this doctor.")
 
     # 3. Insert new request
-    request_dict = request_data.model_dump(exclude={'id'})
     result = await connection_requests_collection.insert_one(request_dict)
     request_dict["id"] = str(result.inserted_id)
     
@@ -97,5 +100,3 @@ async def accept_connection_request(
     update_result['id'] = str(update_result['_id'])
     
     return ConnectionRequest(**update_result)
-
-# NOTE: A separate endpoint would be needed for rejecting a request.

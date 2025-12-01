@@ -4,23 +4,26 @@ import os
 import google.generativeai as genai
 import chromadb
 from chromadb.utils import embedding_functions
-from database import reports_collection
+from database import reports_collection 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # --- Configuration ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# FIX: Using 'gemini-2.5-pro' for superior reasoning over Flash.
+MODEL_NAME = "gemini-2.5-pro" 
+
 if not GEMINI_API_KEY:
-    raise ValueError("GEMINI_API_KEY not found in .env file.")
+    # This check ensures the configuration step does not crash the server on startup
+    pass 
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-# Initialize ChromaDB (Persistent storage so data survives restarts)
-# This will create a folder named 'chroma_db' in your project root
+# Initialize ChromaDB 
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 
-# Use Sentence Transformers for embeddings (matches requirements.txt)
+# Use Sentence Transformers for embeddings 
 sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
     model_name="all-MiniLM-L6-v2"
 )
@@ -31,16 +34,15 @@ collection = chroma_client.get_or_create_collection(
     embedding_function=sentence_transformer_ef
 )
 
-# --- Helper: Add Report to Vector DB ---
+# --- Helper: Add Report to Vector DB (Necessary for RAG) ---
 async def index_report(report_id: str, text_content: str, metadata: dict):
     """
-    Splits a report into chunks and saves them to ChromaDB.
-    Call this function immediately after saving a report to MongoDB.
+    Splits a report into chunks and saves them to ChromaDB for RAG retrieval.
     """
     if not text_content:
         return
 
-    # Simple chunking strategy (can be improved with LangChain later)
+    # Simple chunking strategy
     chunk_size = 500
     chunks = [text_content[i:i+chunk_size] for i in range(0, len(text_content), chunk_size)]
     
@@ -54,15 +56,13 @@ async def index_report(report_id: str, text_content: str, metadata: dict):
     )
     print(f"Indexed report {report_id} into {len(chunks)} chunks.")
 
-# --- Main RAG Function ---
+# --- Main RAG Function (Analysis and Medicine Suggestion) ---
 async def get_rag_response(query: str, user_email: str) -> str:
     """
-    1. Searches ChromaDB for relevant chunks belonging to the user.
-    2. Sends the chunks + query to Gemini for an answer.
+    Retrieves patient data and asks the specialized LLM to provide analysis and medicine suggestions.
     """
     try:
         # 1. Retrieve relevant documents from Chroma
-        # We filter by 'owner_email' to ensure patients only see THEIR OWN data.
         results = collection.query(
             query_texts=[query],
             n_results=3,
@@ -70,65 +70,72 @@ async def get_rag_response(query: str, user_email: str) -> str:
         )
 
         retrieved_context = ""
-        if results['documents']:
-            # Flatten list of lists
+        if results['documents'] and results['documents'][0]:
             retrieved_context = "\n\n".join(results['documents'][0])
         
-        # 2. Construct Prompt for Gemini
+        # 2. Construct Prompt for Medical Analysis
         if not retrieved_context:
-            system_instruction = "You are a helpful medical assistant. The user has no medical records uploaded yet. Answer broadly but advise them to consult a doctor."
+            system_instruction = (
+                "You are ArogyaAI, a helpful, GENERAL medical assistant. "
+                "The user has no relevant medical records. Answer the user's query "
+                "based on general public knowledge. Always add a strong medical disclaimer."
+            )
             context_block = "No specific medical records found."
         else:
             system_instruction = (
-                "You are ArogyaAI, a helpful medical assistant. "
-                "Use the following pieces of retrieved medical context to answer the user's question. "
-                "If the answer is not in the context, say you don't know based on the records. "
-                "Keep answers concise and empathetic."
+                "You are ArogyaAI, a specialized medical AI assistant. "
+                "ANALYZE the retrieved patient reports and history to answer the user's question. "
+                "FOCUS on extracting key findings, diagnoses, and medical actions. "
+                "If the query relates to symptoms or treatment, suggest only *GENERAL* (non-prescription, non-specific dosage) "
+                "recommendations and common OTC medicines related to the reported conditions. "
+                "Keep answers concise, actionable, and informative. Always conclude with a mandatory medical disclaimer."
             )
-            context_block = f"--- Retrieved Medical Records ---\n{retrieved_context}\n---------------------------------"
+            context_block = f"--- RETRIEVED PATIENT MEDICAL CONTEXT ---\n{retrieved_context}\n---------------------------------"
 
         full_prompt = f"{system_instruction}\n\n{context_block}\n\nUser Question: {query}"
 
-        # 3. Generate Response
-        model = genai.GenerativeModel('gemini-pro')
+        # 3. Generate Response (Using the corrected model name)
+        model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(full_prompt)
         
         return response.text
 
     except Exception as e:
         print(f"RAG Error: {e}")
-        return "I'm sorry, I encountered an error analyzing your records. Please try again later."
+        return "I'm sorry, I encountered an error analyzing your records. Please ensure your GEMINI_API_KEY is correct and try again."
 
 # --- Summary Function ---
 async def get_summary_response(user_email: str) -> str:
-    """
-    Retrieves the most recent reports and asks Gemini to summarize the patient's health status.
-    """
     try:
-        # Fetch the latest 5 chunks from this user's collection
-        # Note: Chroma query() requires a query_text, so we use a generic term.
         results = collection.query(
-            query_texts=["medical summary diagnosis treatment"],
-            n_results=10,
+            query_texts=["general health history diagnosis treatment lab results"],
+            n_results=10, 
             where={"owner_email": user_email}
         )
 
         retrieved_context = ""
-        if results['documents']:
-            retrieved_context = "\n".join(results['documents'][0])
+        if results['documents'] and results['documents'][0]:
+            retrieved_context = "\n\n".join(results['documents'][0])
         
         if not retrieved_context:
-            return "You haven't uploaded any medical reports yet, so I cannot generate a health summary."
+            return "You haven't uploaded any medical reports yet. Please upload a few reports before requesting a summary."
 
         prompt = (
-            f"Based on the following medical record excerpts, provide a concise 3-bullet point summary "
-            f"of the patient's recent health status:\n\n{retrieved_context}"
+            "You are ArogyaAI, the patient's personal medical record summarization assistant. "
+            "Analyze the following medical record excerpts and provide a concise, professional summary "
+            "of the patient's current health status. Structure your response into 3 sections:\n\n"
+            "1. **Key Diagnoses/Findings:** List the most important health concerns or lab results.\n"
+            "2. **Recent Actions:** Note any recent prescriptions, treatments, or recommendations.\n"
+            "3. **General Status:** Provide a single concluding sentence on the overall health state.\n\n"
+            "--- MEDICAL RECORDS CONTEXT ---\n"
+            f"{retrieved_context}"
+            "\n---------------------------------"
         )
         
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(prompt)
         return response.text
 
     except Exception as e:
         print(f"Summary Error: {e}")
-        return "Unable to generate summary at this time."
+        return "I am unable to generate the comprehensive summary at this time due to a processing error."

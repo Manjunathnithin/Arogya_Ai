@@ -1,11 +1,23 @@
-/* static/styles.css */
+/* static/styles.css - FINAL ENHANCED VERSION */
+
+:root {
+    --primary-color: #4f46e5; /* Indigo */
+    --secondary-color: #3b82f6; /* Blue */
+    --success-color: #10b981; /* Emerald */
+    --error-color: #ef4444; /* Red */
+    --background-light: #f4f7f9;
+    --card-background: white;
+    --text-dark: #1f2937;
+    --border-color: #e5e7eb;
+}
 
 body {
-    font-family: Arial, sans-serif;
-    background-color: #f4f7f9;
-    color: #333;
+    font-family: 'Inter', Arial, sans-serif;
+    background-color: var(--background-light);
+    color: var(--text-dark);
     margin: 0;
     padding: 0;
+    line-height: 1.5;
 }
 
 .container {
@@ -16,72 +28,342 @@ body {
 
 /* Header Styling */
 header {
-    background-color: #4f46e5; /* indigo-600 */
+    background-color: var(--primary-color);
     color: white;
     padding: 10px 0;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+header .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
 }
 
 header h1 {
     margin: 0;
-    font-size: 1.5rem;
-    padding: 0 20px;
+    font-size: 1.6rem;
+    font-weight: 600;
 }
 
-/* Layout for Patient/Doctor Dashboard */
+/* General Buttons */
+button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+button:hover {
+    background-color: #4338ca; /* Slightly darker indigo */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Input Fields and Selects */
+input[type="text"], input[type="email"], input[type="password"], input[type="datetime-local"], select, textarea {
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-size: 1rem;
+    color: var(--text-dark);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input:focus, select:focus, textarea:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
+/* Layout for Dashboard */
 .dashboard-layout {
     display: flex;
-    gap: 20px;
-    margin-top: 20px;
+    gap: 30px;
+    margin-top: 25px;
 }
 
 .sidebar {
-    width: 280px;
-    background-color: white;
+    width: 250px;
+    background-color: var(--card-background);
     padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    align-self: flex-start; /* Keeps sidebar sticky */
+}
+
+.sidebar h4 {
+    color: var(--primary-color);
+    margin-top: 20px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 5px;
+}
+
+.sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 10px;
+}
+
+.sidebar li a {
+    display: block;
+    padding: 8px 0;
+    color: #4b5563;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.sidebar li a:hover {
+    color: var(--primary-color);
 }
 
 .main-content {
     flex-grow: 1;
-    background-color: white;
-    padding: 20px;
+    background-color: var(--card-background);
+    padding: 30px;
     border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-/* Chat specific styles (to match the HTML returned by main.py) */
+/* Chat Specifics */
 #chat-history-container {
-    height: 400px; /* Fixed height for chat scroll area */
+    height: 400px;
     overflow-y: auto;
-    padding: 10px;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
     margin-bottom: 15px;
+    background-color: #fafbfd;
 }
 
 .chat-input-area {
     display: flex;
-    gap: 10px;
+    gap: 8px;
 }
 
-.chat-input-area input[type="text"] {
-    flex-grow: 1;
-    padding: 10px;
-    border: 1px solid #ccc;
+/* Card Styles (Reports, Appointments) */
+.data-list-container {
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.report-card, .appointment-card {
+    border: 1px solid var(--border-color);
+    margin-bottom: 10px;
+    padding: 15px;
+    border-radius: 6px;
+    background-color: var(--card-background);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.report-card-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-title {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.tag-type {
+    background-color: #e0e7ff; /* Light indigo */
+    color: #4338ca;
+    padding: 2px 8px;
     border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: 600;
 }
 
-button {
-    background-color: #4f46e5;
+/* Utility Colors for Buttons/Sections */
+.btn-secondary {
+    background-color: var(--secondary-color);
+}
+.btn-secondary:hover {
+    background-color: #2563eb;
+}
+.btn-success {
+    background-color: var(--success-color);
+}
+.btn-success:hover {
+    background-color: #059669;
+}
+.btn-red {
+    background-color: var(--error-color);
+}
+.btn-red:hover {
+    background-color: #dc2626;
+}
+.section-card {
+    background-color: #f3f4f6;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+/* --- Index/Login Page Specific Styles --- */
+
+.auth-page {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.auth-container {
+    background-color: var(--card-background);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    max-width: 900px;
+    width: 100%;
+    overflow: hidden;
+}
+
+.auth-header {
+    background-color: var(--primary-color);
     color: white;
-    border: none;
-    padding: 10px 15px;
-    border-radius: 4px;
-    cursor: pointer;
+    padding: 20px;
+    text-align: center;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
 }
 
-button:hover {
-    background-color: #4338ca;
+.auth-forms {
+    display: flex;
+    gap: 30px;
+    padding: 40px;
+}
+
+.form-section {
+    flex: 1;
+    min-width: 300px;
+}
+
+.form-section h2 {
+    color: var(--primary-color);
+    margin-top: 0;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group input, .form-group select {
+    width: 100%;
+    margin-top: 5px;
+}
+
+.form-divider {
+    border-right: 1px solid var(--border-color);
+    margin: 0 -30px;
+}
+
+.btn-register {
+    background-color: var(--secondary-color);
+}
+.btn-register:hover {
+    background-color: #2563eb;
+}
+
+/* --- Index/Login Page Specific Styles --- */
+
+.auth-page {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.auth-container {
+    background-color: var(--card-background);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    max-width: 450px; /* Initial width for Login form */
+    width: 100%;
+    overflow: hidden;
+    transition: max-width 0.3s ease; /* Smooth transition for width change */
+}
+
+.auth-header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 20px;
+    text-align: center;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.auth-forms-wrapper {
+    position: relative;
+    padding: 40px;
+    /* Use padding to define the content area */
+}
+
+.form-section {
+    /* Style for the individual forms */
+    width: 100%;
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+.form-section.hidden {
+    /* Hide the form by positioning it out of flow and reducing opacity */
+    position: absolute;
+    top: 40px;
+    left: 40px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(20px);
+}
+
+.form-section h2 {
+    color: var(--primary-color);
+    margin-top: 0;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group input, .form-group select {
+    width: 100%;
+    margin-top: 5px;
+}
+
+.link-switch {
+    display: block;
+    margin-top: 20px;
+    font-size: 0.95rem;
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.link-switch:hover {
+    text-decoration: underline;
+}
+
+.btn-register {
+    background-color: var(--secondary-color);
+}
+.btn-register:hover {
+    background-color: #2563eb;
 }

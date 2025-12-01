@@ -59,15 +59,13 @@ class Report(ReportBase):
         from_attributes = True
         json_encoders = {ObjectId: str}
 
-# --- APPOINTMENT MODELS (UPDATED) ---
+# --- APPOINTMENT MODELS ---
 
-# 1. Input Model (User provides these)
 class AppointmentCreate(BaseModel):
     title: str
     doctor_email: EmailStr
     appointment_time: datetime
 
-# 2. Database Model (Includes system fields)
 class AppointmentBase(AppointmentCreate):
     patient_email: EmailStr
     status: str = 'scheduled' 
@@ -79,17 +77,49 @@ class Appointment(AppointmentBase):
         from_attributes = True
         json_encoders = {ObjectId: str}
 
-# --- CONNECTION MODELS ---
+# --- CONNECTION MODELS (FIXED) ---
 
-class ConnectionRequestBase(BaseModel):
-    patient_email: EmailStr
+class AppointmentCreate(BaseModel):
+    # Subject of the appointment (e.g., "Annual Checkup")
+    title: str
+    
+    # ISO 8601 formatted datetime string
+    appointment_time: datetime
+    
+    # Identifier for the Doctor/Provider
     doctor_email: EmailStr
+
+class AppointmentBase(AppointmentCreate):
+    # Status can be 'scheduled', 'completed', 'cancelled'
+    status: str = 'scheduled' 
+    
+    # Identifier for the Patient
+    patient_email: EmailStr
+    
+    # NEW FIELD: The Google Meet link
+    meeting_link: str | None = None
+
+class Appointment(AppointmentBase):
+    # Model used when retrieving from the database
+    id: str | None = None
+    
+    class Config:
+        from_attributes = True
+        json_encoders = {ObjectId: str}
+# 1. Input Model (Only what the patient sends)
+class ConnectionRequestInput(BaseModel):
+    doctor_email: EmailStr
+
+# 2. Database Creation Model (Requires patient_email for insertion)
+class ConnectionRequestCreate(ConnectionRequestInput):
+    patient_email: EmailStr 
     status: str = 'pending' 
     request_date: datetime = datetime.now(timezone.utc)
-    
-class ConnectionRequestCreate(ConnectionRequestBase):
-    doctor_email: EmailStr
 
+# 3. Base Model for DB/Response
+class ConnectionRequestBase(ConnectionRequestCreate):
+    pass
+    
 class ConnectionRequest(ConnectionRequestBase):
     id: str | None = None
     
